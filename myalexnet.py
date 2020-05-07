@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
-from .utils import load_state_dict_from_url
-from reverse_layer import ReverseLayerF
+from HomeworkFolder.reverse_layer import ReverseLayerF
 
 
 __all__ = ['AlexNet', 'alexnet']
@@ -53,7 +52,7 @@ class AlexNet(nn.Module):
         )
             
 
-    def forward(self, classifier, alpha = None, x):
+    def forward(self, classifier, x, alpha = None):
         if classifier == 'label':
             x = self.features(x)
             x = self.avgpool(x)
@@ -78,7 +77,7 @@ def alexnet(pretrained=True, progress=True, **kwargs):
     """
     model = AlexNet(**kwargs)
     if pretrained:
-        state_dict = load_state_dict_from_url(model_urls['alexnet'],
+        state_dict = torch.hub.load_state_dict_from_url(model_urls['alexnet'],
                                               progress=progress)
         model.load_state_dict(state_dict, strict = False)
         
