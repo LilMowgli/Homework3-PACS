@@ -31,16 +31,17 @@ class AlexNet(nn.Module):
             nn.MaxPool2d(kernel_size=3, stride=2),
         )
         self.avgpool = nn.AdaptiveAvgPool2d((6, 6))
-        self.label_classifier = nn.Sequential(
+	#label classifier
+        self.classifier = nn.Sequential( 
             nn.Dropout(),
             nn.Linear(256 * 6 * 6, 4096),
             nn.ReLU(inplace=True),
             nn.Dropout(),
             nn.Linear(4096, 4096),
             nn.ReLU(inplace=True),
-            nn.Linear(4096, num_classes),
-        ) #set to actual numebr of classes = 7
-
+            nn.Linear(4096, num_classes), #set to actual number of classes = 7
+        ) 
+	#domain_classifier
 	self.domain_classifier = nn.Sequential(
             nn.Dropout(),
             nn.Linear(256 * 6 * 6, 4096),
@@ -48,14 +49,22 @@ class AlexNet(nn.Module):
             nn.Dropout(),
             nn.Linear(4096, 4096),
             nn.ReLU(inplace=True),
-            nn.Linear(4096, num_classes),
-        ) #set to actual number of domain classes = 2 (compare onlyspurce domain vs target domain)
+            nn.Linear(4096, num_classes), #set to actual number of domain classes = 2 (compare only source domain vs target domain)
+        ) 
 
-    def forward(self, x):
-        x = self.features(x)
-        x = self.avgpool(x)
-        x = torch.flatten(x, 1)
-        x = self.classifier(x)
+    def forward(self, classifier, x):
+	if classifier == 'label':
+		x = self.features(x)
+		x = self.avgpool(x)
+		x = torch.flatten(x, 1)
+		x = self.label_classifier(x)
+	
+	elif classifier == 'domain':
+		x = self.features(x)
+		x = self.avgpool(x)
+		x = torch.flatten(x, 1)
+		x = self.domain_classifier(x)
+		
         return x
 
 
@@ -73,5 +82,8 @@ def alexnet(pretrained=True, progress=True, **kwargs):
                                               progress=progress)
         model.load_state_dict(state_dict, strict = False)
 
+	#copy label classifier with prerained weights in domain_classifier
+	copy_classifier = nn.Sequential(*list(model.classifier.children()))
+	model.domain_classifier = copy_classifier
 	
     return model
