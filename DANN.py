@@ -52,7 +52,7 @@ class AlexNet(nn.Module):
         )
             
 
-    def forward(self, classifier, x, alpha = None):
+    def forward(self, x, classifier, alpha = None):
         if classifier == 'label':
             x = self.features(x)
             x = self.avgpool(x)
