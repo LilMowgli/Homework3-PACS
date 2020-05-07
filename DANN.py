@@ -83,7 +83,7 @@ def alexnet(pretrained=True, progress=True, **kwargs):
                                               progress=progress)
         model.load_state_dict(state_dict, strict = False)
 	#copy label classifier with pretrained weights in domain_classifier excluding last FC layer
-	for i in range(len(list(model.classifier.children())[:-1])):
+	for i in [1, 4]:
 		model.dann_classifier[i].weight.data = model.classifier[i].weight.data
 		model.dann_classifier[i].bias.data = model.classifier[i].bias.data
 	
