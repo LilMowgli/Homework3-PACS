@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from .utils import load_state_dict_from_url
+from reverse_layer import ReverseLayerF
 
 
 __all__ = ['AlexNet', 'alexnet']
@@ -40,16 +41,35 @@ class AlexNet(nn.Module):
             nn.ReLU(inplace=True),
             nn.Linear(4096, num_classes),
         )
+        
+        self.dann_classifier = nn.Sequential(
+            nn.Dropout(),
+            nn.Linear(256 * 6 * 6, 4096),
+            nn.ReLU(inplace=True),
+            nn.Dropout(),
+            nn.Linear(4096, 4096),
+            nn.ReLU(inplace=True),
+            nn.Linear(4096, num_classes),
+        )
+            
 
-    def forward(self, x):
-        x = self.features(x)
-        x = self.avgpool(x)
-        x = torch.flatten(x, 1)
-        x = self.classifier(x)
+    def forward(self, classifier, alpha = None, x):
+        if classifier == 'label':
+            x = self.features(x)
+            x = self.avgpool(x)
+            x = torch.flatten(x, 1)
+            x = self.classifier(x)
+        elif classifier == 'dann':
+            x = self.features(x)
+            x = self.avgpool(x)
+            x = torch.flatten(x, 1)
+            reverse_features = ReverseLayerF.apply(x, alpha)
+            x = self.dann_classifier(reverse_features)
+            
         return x
 
 
-def alexnet(pretrained=False, progress=True, **kwargs):
+def alexnet(pretrained=True, progress=True, **kwargs):
     r"""AlexNet model architecture from the
     `"One weird trick..." <https://arxiv.org/abs/1404.5997>`_ paper.
     Args:
@@ -60,5 +80,12 @@ def alexnet(pretrained=False, progress=True, **kwargs):
     if pretrained:
         state_dict = load_state_dict_from_url(model_urls['alexnet'],
                                               progress=progress)
-        model.load_state_dict(state_dict)
+        model.load_state_dict(state_dict, strict = False)
+        
+        #copy label classifier with pretrained weights in domain_classifier excluding last FC layer
+        for i in [1, 4]:
+            model.dann_classifier[i].weight.data = model.classifier[i].weight.data
+            model.dann_classifier[i].bias.data = model.classifier[i].bias.data
+        
+        
     return model
