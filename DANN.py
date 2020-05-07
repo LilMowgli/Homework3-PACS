@@ -58,16 +58,13 @@ class AlexNet(nn.Module):
 		x = self.avgpool(x)
 		x = torch.flatten(x, 1)
 		x = self.label_classifier(x)
-	
+		
 	elif classifier == 'domain':
 		x = self.features(x)
 		x = self.avgpool(x)
 		x = torch.flatten(x, 1)
-		# gradient reversal layer (backward gradients will be reversed)
-            	reverse_features = ReverseLayerF.apply(x, alpha)
-            	discriminator_output = self.dann_classifier(reverse_features)
-            	return discriminator_output
-		
+		reverse_features = ReverseLayerF.apply(x, alpha)
+		x = self.dann_classifier(reverse_features)
 		
         return x
 
@@ -85,8 +82,7 @@ def alexnet(pretrained=True, progress=True, **kwargs):
         state_dict = load_state_dict_from_url(model_urls['alexnet'],
                                               progress=progress)
         model.load_state_dict(state_dict, strict = False)
-
-	#copy label classifier with prerained weights in domain_classifier excluding last FC layer
+	#copy label classifier with pretrained weights in domain_classifier excluding last FC layer
 	for i in range(len(list(model.classifier.children())[:-1])):
 		model.dann_classifier[i].weight.data = model.classifier[i].weight.data
 		model.dann_classifier[i].bias.data = model.classifier[i].bias.data
