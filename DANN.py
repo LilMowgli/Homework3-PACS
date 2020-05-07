@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
 from .utils import load_state_dict_from_url
-
-
+from reverse_layer import ReverseLayerF
 __all__ = ['AlexNet', 'alexnet']
 
 
@@ -13,7 +12,7 @@ model_urls = {
 
 class AlexNet(nn.Module):
 
-    def __init__(self, num_classes=1000):
+    def __init__(self, num_classes=1000, dann_num_classes):
         super(AlexNet, self).__init__()
         self.features = nn.Sequential(
             nn.Conv2d(3, 64, kernel_size=11, stride=4, padding=2),
@@ -42,17 +41,17 @@ class AlexNet(nn.Module):
             nn.Linear(4096, num_classes), #set to actual number of classes = 7
         ) 
 	#domain_classifier
-	self.domain_classifier = nn.Sequential(
+	self.dann_classifier = nn.Sequential( 
             nn.Dropout(),
             nn.Linear(256 * 6 * 6, 4096),
             nn.ReLU(inplace=True),
             nn.Dropout(),
             nn.Linear(4096, 4096),
             nn.ReLU(inplace=True),
-            nn.Linear(4096, num_classes), #set to actual number of domain classes = 2 (compare only source domain vs target domain)
+            nn.Linear(4096, num_classes), #set to actual number of classes = 7
         ) 
 
-    def forward(self, classifier, x):
+    def forward(self, classifier, alpha = None, x):
 	if classifier == 'label':
 		x = self.features(x)
 		x = self.avgpool(x)
@@ -63,7 +62,11 @@ class AlexNet(nn.Module):
 		x = self.features(x)
 		x = self.avgpool(x)
 		x = torch.flatten(x, 1)
-		x = self.domain_classifier(x)
+		# gradient reversal layer (backward gradients will be reversed)
+            	reverse_features = ReverseLayerF.apply(x, alpha)
+            	discriminator_output = self.dann_classifier(reverse_features)
+            	return discriminator_output
+		
 		
         return x
 
@@ -82,8 +85,9 @@ def alexnet(pretrained=True, progress=True, **kwargs):
                                               progress=progress)
         model.load_state_dict(state_dict, strict = False)
 
-	#copy label classifier with prerained weights in domain_classifier
-	copy_classifier = nn.Sequential(*list(model.classifier.children()))
-	model.domain_classifier = copy_classifier
+	#copy label classifier with prerained weights in domain_classifier excluding last FC layer
+	for i in range(len(list(model.classifier.children())[:-1])):
+		model.dann_classifier[i].weight.data = model.classifier[i].weight.data
+		model.dann_classifier[i].bias.data = model.classifier[i].bias.data
 	
     return model
