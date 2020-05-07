@@ -41,16 +41,17 @@ class AlexNet(nn.Module):
             nn.Linear(4096, num_classes), #set to actual number of classes = 7
         ) 
 	#domain_classifier
-	self.dann_classifier = nn.Sequential( 
-            nn.Dropout(),
-            nn.Linear(256 * 6 * 6, 4096),
-            nn.ReLU(inplace=True),
-            nn.Dropout(),
-            nn.Linear(4096, 4096),
-            nn.ReLU(inplace=True),
-            nn.Linear(4096, num_classes), #set to actual number of classes = 7
-        ) 
-
+	self.dann_classifier = nn.Sequential(
+		nn.Dropout(), 
+		nn.Linear(256 * 6 * 6, 4096),
+		nn.ReLU(inplace=True),
+		nn.Dropout(),
+		nn.Linear(4096, 4096),
+		nn.ReLU(inplace=True),
+		nn.Linear(4096, num_classes), #set to actual number of classes = 2
+	)
+		
+		
     def forward(self, classifier, alpha = None, x):
 	if classifier == 'label':
 		x = self.features(x)
